@@ -213,6 +213,11 @@ async def get_stats():
     """Tüm okuma istatistiklerini getir."""
     return {"stats": db.get_all_stats()}
 
+@app.delete("/api/sessions/{session_id}")
+async def delete_session(session_id: int):
+    db.delete_session(session_id)
+    return {"ok": True}
+
 
 @app.get("/api/sessions")
 async def get_sessions(limit: int = Query(default=10, ge=1, le=50)):

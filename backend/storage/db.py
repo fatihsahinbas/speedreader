@@ -54,6 +54,11 @@ def init_db():
             );
         """)
 
+def delete_session(session_id: int):
+    with get_connection() as conn:
+        conn.execute("DELETE FROM progress WHERE session_id=?", (session_id,))
+        conn.execute("DELETE FROM reading_stats WHERE session_id=?", (session_id,))
+        conn.execute("DELETE FROM sessions WHERE id=?", (session_id,))
 
 def create_session(source: str, source_type: str, total_words: int) -> int:
     with get_connection() as conn:
