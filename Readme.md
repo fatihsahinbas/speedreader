@@ -52,7 +52,7 @@ http://127.0.0.1:8000
 
 ---
 
-## 🗂 Proje Yapısı
+Proje Yapısı
 
 ```
 speedreader/
