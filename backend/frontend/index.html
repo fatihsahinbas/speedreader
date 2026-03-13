@@ -1,0 +1,1303 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SpeedReader — Daha Hızlı Oku, Daha Fazla Öğren</title>
+<meta name="description" content="Bionic Reading ve RSVP teknikleriyle okuma hızınızı 2x artırın.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Syne:wght@400;500;600;700&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════
+   DESIGN TOKENS
+═══════════════════════════════════════════════════ */
+:root {
+  --ink:        #0f0e0d;
+  --ink-2:      #1e1c1a;
+  --ink-3:      #2e2b27;
+  --line:       #3a3630;
+  --muted:      #6b6560;
+  --dim:        #4a4540;
+  --paper:      #f5f2ec;
+  --paper-2:    #ede9e1;
+  --gold:       #c9a84c;
+  --gold-2:     #e8c96a;
+  --rust:       #c4694f;
+  --sage:       #6a9e7f;
+  --text:       #f0ede8;
+  --text-muted: #8a8178;
+  --r:          10px;
+  --font-serif: 'Playfair Display', Georgia, serif;
+  --font-sans:  'Syne', system-ui, sans-serif;
+  --font-mono:  'JetBrains Mono', monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--ink);
+  color: var(--text);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  overflow-x: hidden;
+  cursor: default;
+}
+
+/* Grain texture overlay */
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* ═══════════════════════════════════════════════════
+   HEADER
+═══════════════════════════════════════════════════ */
+header {
+  position: sticky; top: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 2.5rem;
+  height: 58px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(15,14,13,0.92);
+  backdrop-filter: blur(24px) saturate(1.2);
+}
+
+.logo {
+  font-family: var(--font-serif);
+  font-size: 1.25rem;
+  font-style: italic;
+  color: var(--gold);
+  letter-spacing: -0.01em;
+}
+.logo span { font-style: normal; color: var(--text); }
+
+.header-center {
+  display: flex; gap: 2px;
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 3px;
+}
+
+.htab {
+  padding: 5px 18px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  color: var(--muted);
+  transition: all 0.2s;
+  border: none; background: none;
+}
+.htab.active {
+  background: var(--ink-3);
+  color: var(--text);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+}
+
+.header-right {
+  display: flex; align-items: center; gap: 14px;
+}
+
+.status-dot {
+  display: flex; align-items: center; gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+.status-dot::before {
+  content: '';
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: background 0.3s;
+}
+.status-dot.ok::before { background: var(--sage); box-shadow: 0 0 6px var(--sage); }
+.status-dot.err::before { background: var(--rust); }
+
+.btn-theme {
+  width: 30px; height: 30px;
+  border-radius: 6px;
+  background: var(--ink-3);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
+}
+.btn-theme:hover { border-color: var(--gold); color: var(--gold); }
+
+/* ═══════════════════════════════════════════════════
+   PAGES
+═══════════════════════════════════════════════════ */
+.page { display: none; }
+.page.active { display: block; animation: rise 0.35s cubic-bezier(0.16,1,0.3,1); }
+@keyframes rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ═══════════════════════════════════════════════════
+   UPLOAD PAGE
+═══════════════════════════════════════════════════ */
+#page-upload {
+  max-width: 780px; margin: 0 auto;
+  padding: 3rem 2rem 4rem;
+}
+
+.hero {
+  text-align: center;
+  padding: 2rem 0 2.5rem;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 2.5rem;
+}
+
+.hero-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 1rem;
+}
+
+.hero-title {
+  font-family: var(--font-serif);
+  font-size: clamp(2rem, 5vw, 3rem);
+  font-weight: 400;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  margin-bottom: 1rem;
+}
+
+.hero-title em { font-style: italic; color: var(--gold); }
+
+.hero-sub {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  line-height: 1.7;
+  max-width: 480px; margin: 0 auto;
+}
+
+/* Upload zone */
+.drop-zone {
+  border: 1px dashed var(--line);
+  border-radius: 14px;
+  padding: 2.5rem 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.25s;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.drop-zone::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at 50% -20%, rgba(201,168,76,0.08) 0%, transparent 60%);
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+
+.drop-zone:hover, .drop-zone.over {
+  border-color: var(--gold);
+  border-style: solid;
+}
+.drop-zone:hover::before, .drop-zone.over::before { opacity: 2; }
+
+.drop-icon {
+  width: 52px; height: 52px;
+  border-radius: 12px;
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.4rem;
+  margin: 0 auto 1.2rem;
+  transition: transform 0.2s;
+}
+.drop-zone:hover .drop-icon { transform: translateY(-2px); }
+
+.drop-title {
+  font-family: var(--font-serif);
+  font-size: 1.2rem;
+  margin-bottom: 0.4rem;
+}
+
+.drop-sub { font-size: 0.8rem; color: var(--text-muted); }
+
+.format-pills {
+  display: flex; gap: 6px; justify-content: center; margin-top: 1.2rem;
+}
+.format-pill {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+
+/* URL input */
+.url-section { margin-bottom: 2rem; }
+
+.url-label {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.6rem;
+}
+.url-label::before, .url-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+.url-row { display: flex; gap: 8px; }
+
+.url-inp {
+  flex: 1;
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.url-inp:focus { border-color: var(--gold); }
+.url-inp::placeholder { color: var(--dim); }
+
+/* Mode cards */
+.modes-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.8rem;
+}
+
+.mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 2rem; }
+
+.mode-card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 1.2rem 1.4rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative; overflow: hidden;
+  background: var(--ink-2);
+}
+
+.mode-card::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0;
+  width: 60px; height: 60px;
+  border-radius: 0 12px 0 60px;
+  transition: all 0.3s;
+}
+
+.mode-card.bionic::after { background: rgba(201,168,76,0.06); }
+.mode-card.rsvp::after   { background: rgba(196,105,79,0.06); }
+
+.mode-card:hover { border-color: var(--dim); }
+.mode-card.sel { border-color: var(--gold); background: rgba(201,168,76,0.04); }
+.mode-card.rsvp.sel { border-color: var(--rust); background: rgba(196,105,79,0.04); }
+
+.mode-tag {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 0.6rem;
+}
+.mode-card.rsvp .mode-tag { color: var(--rust); }
+
+.mode-name {
+  font-family: var(--font-serif);
+  font-size: 1.15rem;
+  margin-bottom: 0.4rem;
+}
+
+.mode-desc { font-size: 0.78rem; color: var(--text-muted); line-height: 1.6; }
+
+/* Action row */
+.action-row { display: flex; align-items: center; gap: 12px; }
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 11px 22px;
+  border-radius: 8px;
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.btn-gold {
+  background: var(--gold);
+  color: var(--ink);
+}
+.btn-gold:hover { background: var(--gold-2); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(201,168,76,0.3); }
+.btn-gold:active { transform: translateY(0); }
+.btn-gold:disabled { opacity: 0.35; cursor: not-allowed; transform: none; box-shadow: none; }
+
+.btn-outline {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--line);
+}
+.btn-outline:hover { border-color: var(--muted); color: var(--text); }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  padding: 7px 14px;
+  font-size: 0.76rem;
+}
+.btn-ghost:hover { color: var(--text); border-color: var(--dim); }
+
+/* Loading */
+.loader-row { display: none; align-items: center; gap: 8px; color: var(--muted); font-size: 0.8rem; }
+.loader-row.on { display: flex; }
+.spin { width: 15px; height: 15px; border: 1.5px solid var(--line); border-top-color: var(--gold); border-radius: 50%; animation: sp 0.65s linear infinite; }
+@keyframes sp { to { transform: rotate(360deg); } }
+
+/* Progress bar (upload) */
+.upload-progress {
+  height: 2px; background: var(--line); border-radius: 1px;
+  margin-top: 1rem; overflow: hidden; display: none;
+}
+.upload-progress.on { display: block; }
+.upload-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--gold), var(--gold-2));
+  border-radius: 1px;
+  transition: width 0.3s;
+}
+
+/* Recent */
+.recent-section { margin-top: 2.5rem; padding-top: 2rem; border-top: 1px solid var(--line); }
+.section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+.section-title { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+
+.recent-grid { display: flex; flex-direction: column; gap: 6px; }
+
+.recent-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px;
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.18s;
+}
+.recent-item:hover { border-color: var(--dim); transform: translateX(3px); }
+.recent-item-icon { font-size: 1rem; flex-shrink: 0; width: 28px; text-align: center; }
+.recent-item-info { flex: 1; min-width: 0; }
+.recent-item-name { font-size: 0.83rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.recent-item-meta { font-size: 0.7rem; color: var(--muted); font-family: var(--font-mono); margin-top: 2px; }
+.recent-prog { flex-shrink: 0; }
+
+/* ═══════════════════════════════════════════════════
+   READ PAGE
+═══════════════════════════════════════════════════ */
+#page-read { max-width: 860px; margin: 0 auto; padding: 1.5rem 2rem 3rem; }
+
+/* Top bar */
+.read-topbar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 0.7rem 1rem;
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  margin-bottom: 1rem;
+  font-size: 0.8rem;
+}
+
+.read-source { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 320px; }
+.read-wc { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); }
+.read-actions { margin-left: auto; display: flex; gap: 6px; }
+
+/* Resume banner */
+.resume-banner {
+  display: none;
+  align-items: center; gap: 10px;
+  padding: 0.75rem 1rem;
+  background: rgba(106,158,127,0.08);
+  border: 1px solid rgba(106,158,127,0.25);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-size: 0.8rem;
+}
+.resume-banner.on { display: flex; }
+.resume-where { color: var(--sage); font-weight: 500; }
+
+/* Controls bar */
+.controls-bar {
+  display: flex; align-items: center; gap: 1.5rem;
+  padding: 0.8rem 1.2rem;
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.ctrl-group { display: flex; align-items: center; gap: 8px; }
+.ctrl-label { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.ctrl-val { font-family: var(--font-mono); font-size: 0.82rem; color: var(--gold); min-width: 38px; text-align: right; }
+
+input[type=range] {
+  -webkit-appearance: none;
+  width: 88px; height: 2px;
+  background: var(--line);
+  border-radius: 1px; outline: none; cursor: pointer;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 13px; height: 13px;
+  border-radius: 50%;
+  background: var(--gold);
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.3); }
+
+select {
+  background: var(--ink-3);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 4px 8px;
+  font-size: 0.78rem;
+  font-family: var(--font-mono);
+  outline: none; cursor: pointer;
+}
+
+.mode-switch {
+  margin-left: auto;
+  display: flex; gap: 3px;
+  background: var(--ink-3);
+  border: 1px solid var(--line);
+  border-radius: 8px; padding: 3px;
+}
+.msw-btn {
+  padding: 4px 14px;
+  border-radius: 6px;
+  font-size: 0.72rem; font-weight: 600;
+  letter-spacing: 0.05em;
+  cursor: pointer; border: none; background: none;
+  color: var(--muted); transition: all 0.15s;
+}
+.msw-btn.active { background: var(--ink-2); color: var(--text); }
+
+/* ── BIONIC ── */
+.bionic-wrap {
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+#bionic-content {
+  font-family: var(--font-serif);
+  font-size: 1.15rem;
+  line-height: 2.1;
+  color: rgba(240,237,232,0.55);
+  max-height: 62vh;
+  overflow-y: auto;
+  padding: 2.5rem 3rem;
+  scroll-behavior: smooth;
+}
+#bionic-content::-webkit-scrollbar { width: 3px; }
+#bionic-content::-webkit-scrollbar-thumb { background: var(--line); border-radius: 2px; }
+#bionic-content p { margin-bottom: 1.4rem; }
+#bionic-content b { color: var(--text); font-weight: 700; }
+
+/* focus mode */
+body.focus #page-read > *:not(.bionic-wrap):not(#rsvp-wrap) { opacity: 0; pointer-events: none; transition: opacity 0.4s; }
+body.focus .bionic-wrap, body.focus #rsvp-wrap { border-color: transparent; }
+
+/* ── RSVP ── */
+#rsvp-wrap { display: none; }
+
+#rsvp-stage {
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  min-height: 250px;
+  position: relative; overflow: hidden;
+}
+
+/* focal guide lines */
+#rsvp-stage::before {
+  content: '';
+  position: absolute;
+  top: 20%; bottom: 20%;
+  left: 50%; width: 1px;
+  background: linear-gradient(180deg, transparent, var(--gold) 50%, transparent);
+  opacity: 0.15;
+}
+
+#rsvp-word {
+  font-family: var(--font-serif);
+  font-size: 3rem;
+  color: var(--text);
+  letter-spacing: -0.02em;
+  text-align: center;
+  position: relative; z-index: 1;
+  min-height: 1.2em;
+  transition: opacity 0.04s;
+}
+#rsvp-word .hi { color: var(--gold); }
+
+.rsvp-bar {
+  position: absolute; bottom: 0; left: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--gold), var(--rust));
+  transition: width 0.08s linear;
+}
+
+.rsvp-meta {
+  display: flex; justify-content: space-between;
+  padding: 0.6rem 0.2rem 0;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.rsvp-controls {
+  display: flex; align-items: center; justify-content: center;
+  gap: 8px; margin-top: 1rem;
+}
+
+.rc {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.95rem;
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  cursor: pointer; transition: all 0.15s;
+  color: var(--muted);
+}
+.rc:hover { border-color: var(--gold); color: var(--gold); transform: scale(1.08); }
+
+.rc-play {
+  width: 46px; height: 46px;
+  font-size: 1.1rem;
+  background: var(--gold);
+  border-color: var(--gold);
+  color: var(--ink);
+}
+.rc-play:hover { background: var(--gold-2); border-color: var(--gold-2); color: var(--ink); }
+
+/* ═══════════════════════════════════════════════════
+   STATS PAGE
+═══════════════════════════════════════════════════ */
+#page-stats { max-width: 900px; margin: 0 auto; padding: 2rem; }
+
+.kpi-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 1.5rem; }
+
+.kpi {
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 1.1rem 1.2rem;
+  position: relative; overflow: hidden;
+}
+.kpi::before {
+  content: '';
+  position: absolute; bottom: 0; left: 0; right: 0;
+  height: 1px;
+}
+.kpi.k1::before { background: var(--gold); }
+.kpi.k2::before { background: var(--rust); }
+.kpi.k3::before { background: var(--sage); }
+.kpi.k4::before { background: #7c9abf; }
+
+.kpi-n {
+  font-family: var(--font-serif);
+  font-size: 1.9rem; line-height: 1;
+  margin-bottom: 0.3rem;
+}
+.kpi-l { font-size: 0.7rem; color: var(--muted); letter-spacing: 0.05em; }
+
+.charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 1.5rem; }
+.chart-box {
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 1.2rem;
+}
+.chart-head { font-size: 0.68rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 1rem; }
+
+.bar-chart { display: flex; align-items: flex-end; gap: 5px; height: 90px; }
+.bc { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.bbar { width: 100%; border-radius: 2px 2px 0 0; min-height: 2px; }
+.blabel { font-family: var(--font-mono); font-size: 0.58rem; color: var(--muted); }
+
+.trend-svg { width: 100%; height: 85px; overflow: visible; }
+
+/* History */
+.history-box {
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: 10px; overflow: hidden;
+}
+.htable { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+.htable th { text-align: left; padding: 8px 12px; font-size: 0.65rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--line); }
+.htable td { padding: 9px 12px; border-bottom: 1px solid rgba(58,54,48,0.4); color: var(--text); font-family: var(--font-mono); font-size: 0.75rem; }
+.htable tr:last-child td { border-bottom: none; }
+.htable tr:hover td { background: rgba(201,168,76,0.03); }
+
+.badge { display: inline-block; padding: 2px 7px; border-radius: 20px; font-size: 0.65rem; font-weight: 600; letter-spacing: 0.05em; }
+.badge-b { background: rgba(201,168,76,0.12); color: var(--gold); }
+.badge-r { background: rgba(196,105,79,0.12); color: var(--rust); }
+.badge-ok { background: rgba(106,158,127,0.12); color: var(--sage); }
+
+/* ═══════════════════════════════════════════════════
+   TOAST
+═══════════════════════════════════════════════════ */
+#toast {
+  position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%) translateY(80px);
+  background: var(--ink-3);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 18px;
+  font-size: 0.8rem;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+  opacity: 0;
+  transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  z-index: 1000; white-space: nowrap;
+}
+#toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ═══════════════════════════════════════════════════
+   LIGHT THEME
+═══════════════════════════════════════════════════ */
+body.light {
+  --ink: #f5f2ec; --ink-2: #ede9e1; --ink-3: #e4dfd6;
+  --line: #d0c9be; --muted: #8a8178; --dim: #b0a898;
+  --text: #1a1814; --text-muted: #6a6560;
+}
+body.light header { background: rgba(245,242,236,0.92); }
+body.light #bionic-content { color: rgba(26,24,20,0.45); }
+body.light #bionic-content b { color: var(--text); }
+
+/* ═══════════════════════════════════════════════════
+   EMPTY
+═══════════════════════════════════════════════════ */
+.empty { text-align: center; padding: 2.5rem; color: var(--muted); }
+.empty-icon { font-size: 1.8rem; margin-bottom: 0.5rem; }
+.empty p { font-size: 0.8rem; }
+
+#file-inp { display: none; }
+</style>
+</head>
+<body>
+
+<!-- ══ HEADER ══════════════════════════════════════ -->
+<header>
+  <div class="logo">Speed<span>Reader</span></div>
+  <div class="header-center">
+    <button class="htab active" onclick="nav('upload')">Yükle</button>
+    <button class="htab" onclick="nav('read')">Oku</button>
+    <button class="htab" onclick="nav('stats')">İstatistik</button>
+  </div>
+  <div class="header-right">
+    <div class="status-dot" id="status-dot">bağlanıyor</div>
+    <button class="btn-theme" onclick="toggleTheme()" title="Tema">☀</button>
+  </div>
+</header>
+
+<div id="toast"></div>
+<input type="file" id="file-inp" accept=".pdf,.txt,.epub">
+
+<!-- ══ UPLOAD PAGE ═════════════════════════════════ -->
+<div class="page active" id="page-upload">
+
+  <div class="hero">
+    <div class="hero-eyebrow">Hızlı Okuma Platformu</div>
+    <h1 class="hero-title">Okuma hızını <em>2 katına</em> çıkar</h1>
+    <p class="hero-sub">Bionic Reading ve RSVP teknikleriyle PDF, kitap ve web içeriklerini çok daha hızlı tüket.</p>
+  </div>
+
+  <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-inp').click()">
+    <div class="drop-icon">📄</div>
+    <div class="drop-title">Dosyaları Buraya Bırak</div>
+    <div class="drop-sub">Tıkla veya sürükle &amp; bırak</div>
+    <div class="format-pills">
+      <span class="format-pill">PDF</span>
+      <span class="format-pill">TXT</span>
+      <span class="format-pill">EPUB</span>
+    </div>
+  </div>
+  <div class="upload-progress" id="up-prog"><div class="upload-progress-bar" id="up-bar" style="width:0%"></div></div>
+
+  <div class="url-section">
+    <div class="url-label">veya URL gir</div>
+    <div class="url-row">
+      <input class="url-inp" type="url" id="url-inp" placeholder="https://...">
+      <button class="btn btn-outline" onclick="fetchURL()">Getir</button>
+    </div>
+  </div>
+
+  <div class="modes-label">Okuma Modu</div>
+  <div class="mode-grid">
+    <div class="mode-card bionic sel" onclick="pickMode('bionic')">
+      <div class="mode-tag">🧠 Bionic</div>
+      <div class="mode-name">Bionic Reading</div>
+      <div class="mode-desc">Her kelimenin ilk yarısı kalın yazılır. Beyin eksik kısmı tamamlar — göz daha az hareket eder.</div>
+    </div>
+    <div class="mode-card rsvp" onclick="pickMode('rsvp')">
+      <div class="mode-tag">⚡ RSVP</div>
+      <div class="mode-name">Flash Okuma</div>
+      <div class="mode-desc">Kelimeler tek tek ekranda belirir. Göz hareketi sıfır, dikkat maksimum.</div>
+    </div>
+  </div>
+
+  <div class="action-row">
+    <button class="btn btn-gold" id="btn-start" onclick="startReading()" disabled>Okumaya Başla</button>
+    <div class="loader-row" id="loader"><div class="spin"></div> İşleniyor...</div>
+  </div>
+
+  <div class="recent-section">
+    <div class="section-head">
+      <span class="section-title">Son Okunanlar</span>
+    </div>
+    <div class="recent-grid" id="recent-grid">
+      <div class="empty"><div class="empty-icon">📚</div><p>Henüz okuma geçmişi yok</p></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══ READ PAGE ════════════════════════════════════ -->
+<div class="page" id="page-read">
+
+  <div class="resume-banner" id="resume-banner">
+    <span>⏩</span>
+    <span>Kaldığın yer: <span class="resume-where" id="resume-where">—</span></span>
+    <div style="margin-left:auto;display:flex;gap:6px">
+      <button class="btn btn-ghost" onclick="doResume()">Devam Et</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('resume-banner').classList.remove('on')">Baştan</button>
+    </div>
+  </div>
+
+  <div class="read-topbar" id="read-topbar" style="display:none">
+    <span class="read-source" id="read-src">—</span>
+    <span class="read-wc" id="read-wc"></span>
+    <div class="read-actions">
+      <button class="btn btn-ghost" onclick="saveProgress()">💾 Kaydet</button>
+      <button class="btn btn-ghost" onclick="toggleFocus()" id="btn-focus">⊙ Odak</button>
+      <button class="btn btn-ghost" onclick="nav('upload')">← Geri</button>
+    </div>
+  </div>
+
+  <div class="controls-bar">
+    <div class="ctrl-group">
+      <span class="ctrl-label">Font</span>
+      <input type="range" min="14" max="28" value="18" oninput="setFont(this.value)">
+      <span class="ctrl-val" id="cv-font">18px</span>
+    </div>
+    <div class="ctrl-group" id="cg-wpm" style="display:none">
+      <span class="ctrl-label">WPM</span>
+      <input type="range" min="50" max="800" step="25" value="250" oninput="setWPM(this.value)">
+      <span class="ctrl-val" id="cv-wpm">250</span>
+    </div>
+    <div class="ctrl-group" id="cg-chunk" style="display:none">
+      <span class="ctrl-label">Kelime</span>
+      <select id="sel-chunk" onchange="reloadRSVP()">
+        <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+      </select>
+    </div>
+    <div class="mode-switch">
+      <button class="msw-btn active" id="msw-b" onclick="switchMode('bionic')">🧠 Bionic</button>
+      <button class="msw-btn" id="msw-r" onclick="switchMode('rsvp')">⚡ RSVP</button>
+    </div>
+  </div>
+
+  <!-- BIONIC -->
+  <div class="bionic-wrap" id="bionic-wrap">
+    <div id="bionic-content">
+      <div class="empty"><div class="empty-icon">🧠</div><p>İçerik bekleniyor...</p></div>
+    </div>
+  </div>
+
+  <!-- RSVP -->
+  <div id="rsvp-wrap">
+    <div id="rsvp-stage">
+      <div id="rsvp-word"><span class="hi">Hazır</span></div>
+      <div class="rsvp-bar" id="rsvp-bar" style="width:0%"></div>
+    </div>
+    <div class="rsvp-meta">
+      <span id="rsvp-pos">0 / 0</span>
+      <span id="rsvp-eta">—</span>
+    </div>
+    <div class="rsvp-controls">
+      <button class="rc" onclick="rsvpRestart()" title="Başa al">⟲</button>
+      <button class="rc" onclick="rsvpBack()">⏮</button>
+      <button class="rc rc-play" id="btn-play" onclick="rsvpToggle()">▶</button>
+      <button class="rc" onclick="rsvpFwd()">⏭</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══ STATS PAGE ═══════════════════════════════════ -->
+<div class="page" id="page-stats">
+
+  <div class="kpi-row">
+    <div class="kpi k1"><div class="kpi-n" id="k-ses">—</div><div class="kpi-l">Toplam Oturum</div></div>
+    <div class="kpi k2"><div class="kpi-n" id="k-wrd">—</div><div class="kpi-l">Okunan Kelime</div></div>
+    <div class="kpi k3"><div class="kpi-n" id="k-tim">—</div><div class="kpi-l">Toplam Süre</div></div>
+    <div class="kpi k4"><div class="kpi-n" id="k-wpm">—</div><div class="kpi-l">Ortalama WPM</div></div>
+  </div>
+
+  <div class="charts-row">
+    <div class="chart-box">
+      <div class="chart-head">Son 7 Gün — Kelime</div>
+      <div class="bar-chart" id="chart-daily"></div>
+    </div>
+    <div class="chart-box">
+      <div class="chart-head">WPM Trendi</div>
+      <svg class="trend-svg" id="chart-wpm" viewBox="0 0 300 85" preserveAspectRatio="none">
+        <defs><linearGradient id="tg" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#c9a84c" stop-opacity="0.3"/>
+          <stop offset="100%" stop-color="#c9a84c" stop-opacity="0"/>
+        </linearGradient></defs>
+        <text x="150" y="48" text-anchor="middle" fill="#4a4540" font-size="10" font-family="JetBrains Mono">Veri bekleniyor...</text>
+      </svg>
+    </div>
+  </div>
+
+  <div class="section-head" style="margin-bottom:0.8rem">
+    <span class="section-title">Okuma Geçmişi</span>
+  </div>
+  <div class="history-box">
+    <table class="htable">
+      <thead><tr>
+        <th>Kaynak</th><th>Tür</th><th>Mod</th><th>Kelime</th><th>WPM</th><th>Süre</th><th>Durum</th>
+      </tr></thead>
+      <tbody id="htbody">
+        <tr><td colspan="7"><div class="empty"><div class="empty-icon">📊</div><p>Henüz kayıt yok</p></div></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<!-- ══ SCRIPT ════════════════════════════════════════ -->
+<script>
+const API = 'http://127.0.0.1:8000';
+
+const S = {
+  sid: null, text: null, src: '', wc: 0, mode: 'bionic',
+  words: [], idx: 0, playing: false, timer: null, wpm: 250,
+  t0: null, nRead: 0, savedProg: null, focusMode: false,
+};
+
+/* ── HEALTH ── */
+async function ping() {
+  try {
+    await fetch(`${API}/api/health`);
+    const d = document.getElementById('status-dot');
+    d.textContent = 'bağlı'; d.classList.add('ok');
+  } catch {
+    const d = document.getElementById('status-dot');
+    d.textContent = 'bağlantı yok'; d.classList.add('err');
+  }
+}
+ping();
+
+/* ── NAV ── */
+function nav(p) {
+  document.querySelectorAll('.page').forEach(x => x.classList.remove('active'));
+  document.querySelectorAll('.htab').forEach(x => x.classList.remove('active'));
+  document.getElementById('page-' + p).classList.add('active');
+  ['upload','read','stats'].forEach((n,i) => { if(n===p) document.querySelectorAll('.htab')[i].classList.add('active'); });
+  if(p==='stats') loadDash();
+  if(p==='upload') loadRecent();
+}
+
+/* ── THEME ── */
+function toggleTheme() {
+  document.body.classList.toggle('light');
+  document.querySelector('.btn-theme').textContent = document.body.classList.contains('light') ? '🌙' : '☀';
+}
+
+/* ── FOCUS MODE ── */
+function toggleFocus() {
+  S.focusMode = !S.focusMode;
+  document.body.classList.toggle('focus', S.focusMode);
+  document.getElementById('btn-focus').style.color = S.focusMode ? 'var(--gold)' : '';
+}
+
+/* ── MODE ── */
+function pickMode(m) {
+  S.mode = m;
+  document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('sel'));
+  document.querySelector('.mode-card.' + m).classList.add('sel');
+}
+
+function switchMode(m) {
+  S.mode = m;
+  document.getElementById('msw-b').classList.toggle('active', m==='bionic');
+  document.getElementById('msw-r').classList.toggle('active', m==='rsvp');
+  document.getElementById('bionic-wrap').style.display = m==='bionic' ? 'block' : 'none';
+  document.getElementById('rsvp-wrap').style.display = m==='rsvp' ? 'block' : 'none';
+  document.getElementById('cg-wpm').style.display = m==='rsvp' ? 'flex' : 'none';
+  document.getElementById('cg-chunk').style.display = m==='rsvp' ? 'flex' : 'none';
+  if(m==='rsvp') { rsvpStop(); if(S.words.length===0 && S.text) loadRSVP(); }
+}
+
+/* ── DRAG & DROP ── */
+const dz = document.getElementById('drop-zone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('over'); const f = e.dataTransfer.files[0]; if(f) handleFile(f); });
+document.getElementById('file-inp').addEventListener('change', e => { if(e.target.files[0]) handleFile(e.target.files[0]); });
+
+/* ── FILE UPLOAD (with fake progress) ── */
+async function handleFile(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  if(!['pdf','txt','epub'].includes(ext)) { toast('❌ Desteklenmeyen format: .' + ext); return; }
+  setLoading(true);
+  fakeProgress();
+  const fd = new FormData(); fd.append('file', file);
+  try {
+    const r = await fetch(`${API}/api/parse/${ext}`, { method:'POST', body: fd });
+    if(!r.ok) throw new Error(await r.text());
+    const d = await r.json();
+    await setContent(d);
+    toast(`✅ ${file.name} — ${d.word_count.toLocaleString()} kelime`);
+  } catch(e) { toast('❌ ' + e.message); }
+  finally { setLoading(false); endProgress(); }
+}
+
+function fakeProgress() {
+  const bar = document.getElementById('up-bar');
+  const prog = document.getElementById('up-prog');
+  prog.classList.add('on'); bar.style.width = '0%';
+  let v = 0;
+  const t = setInterval(() => {
+    v = Math.min(v + Math.random() * 15, 85);
+    bar.style.width = v + '%';
+    if(v >= 85) clearInterval(t);
+  }, 200);
+  prog._t = t;
+}
+function endProgress() {
+  const bar = document.getElementById('up-bar');
+  const prog = document.getElementById('up-prog');
+  clearInterval(prog._t);
+  bar.style.width = '100%';
+  setTimeout(() => { prog.classList.remove('on'); bar.style.width='0%'; }, 600);
+}
+
+async function fetchURL() {
+  const url = document.getElementById('url-inp').value.trim();
+  if(!url) { toast('⚠️ URL girin'); return; }
+  setLoading(true);
+  try {
+    const r = await fetch(`${API}/api/parse/url`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({url}) });
+    if(!r.ok) throw new Error(await r.text());
+    const d = await r.json();
+    await setContent(d);
+    toast(`✅ Yüklendi — ${d.word_count.toLocaleString()} kelime`);
+  } catch(e) { toast('❌ ' + e.message); }
+  finally { setLoading(false); }
+}
+
+/* ── CONTENT ── */
+async function setContent(d) {
+  S.sid = d.session_id; S.text = d.text; S.src = d.source; S.wc = d.word_count;
+  S.words = []; S.idx = 0; S.savedProg = null;
+  document.getElementById('btn-start').disabled = false;
+  try {
+    for(const m of ['bionic','rsvp']) {
+      const r = await fetch(`${API}/api/progress/${d.session_id}/${m}`);
+      const p = await r.json();
+      if(p.found && (p.word_position > 20 || p.scroll_pct > 0.02)) { S.savedProg = p; break; }
+    }
+  } catch {}
+}
+
+async function startReading() {
+  if(!S.text) return;
+  nav('read');
+  document.getElementById('read-topbar').style.display = 'flex';
+  document.getElementById('read-src').textContent = S.src;
+  document.getElementById('read-wc').textContent = S.wc.toLocaleString() + ' kelime';
+
+  if(S.savedProg) {
+    const p = S.savedProg;
+    const where = p.mode === 'rsvp' ? `RSVP — ${p.word_position}. kelime` : `Bionic — %${Math.round(p.scroll_pct*100)} ilerleme`;
+    document.getElementById('resume-where').textContent = where;
+    document.getElementById('resume-banner').classList.add('on');
+  } else {
+    document.getElementById('resume-banner').classList.remove('on');
+  }
+
+  switchMode(S.mode);
+  if(S.mode === 'bionic') await loadBionic();
+  else await loadRSVP();
+}
+
+function doResume() {
+  document.getElementById('resume-banner').classList.remove('on');
+  if(!S.savedProg) return;
+  const p = S.savedProg;
+  if(p.mode === 'rsvp') {
+    switchMode('rsvp');
+    S.idx = p.word_position || 0;
+    if(p.wpm) { S.wpm = p.wpm; document.querySelector('#cg-wpm input').value = p.wpm; document.getElementById('cv-wpm').textContent = p.wpm; }
+    updateRSVP();
+    toast(`⏩ ${S.idx}. kelimeden devam`);
+  } else {
+    switchMode('bionic');
+    setTimeout(() => {
+      const el = document.getElementById('bionic-content');
+      el.scrollTop = p.scroll_pct * (el.scrollHeight - el.clientHeight);
+      toast(`⏩ %${Math.round(p.scroll_pct*100)} konumuna gidildi`);
+    }, 400);
+  }
+}
+
+/* ── BIONIC ── */
+async function loadBionic() {
+  document.getElementById('bionic-content').innerHTML = '<div class="empty"><div class="spin" style="margin:0 auto 1rem"></div><p>Dönüştürülüyor...</p></div>';
+  try {
+    const r = await fetch(`${API}/api/transform/bionic`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({text: S.text, session_id: S.sid}) });
+    const d = await r.json();
+    document.getElementById('bionic-content').innerHTML = d.html;
+    S.t0 = Date.now();
+    const el = document.getElementById('bionic-content');
+    el.addEventListener('scroll', () => {
+      S.nRead = Math.floor(el.scrollTop / Math.max(1, el.scrollHeight - el.clientHeight) * S.wc);
+    }, {passive: true});
+  } catch(e) { toast('❌ ' + e.message); }
+}
+
+/* ── RSVP ── */
+async function loadRSVP() {
+  rsvpStop(); S.idx = 0;
+  try {
+    const chunk = document.getElementById('sel-chunk').value;
+    const r = await fetch(`${API}/api/transform/rsvp?wpm=${S.wpm}&chunk_size=${chunk}`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({text: S.text, session_id: S.sid}) });
+    const d = await r.json();
+    S.words = d.words; S.t0 = Date.now();
+    updateRSVP();
+    toast(`⚡ ${S.words.length.toLocaleString()} kelime hazır`);
+  } catch(e) { toast('❌ ' + e.message); }
+}
+
+function reloadRSVP() { if(S.text) loadRSVP(); }
+
+function updateRSVP() {
+  const w = S.words[S.idx] || '';
+  const n = S.words.length;
+  const mid = Math.max(0, Math.floor(w.length/3));
+  document.getElementById('rsvp-word').innerHTML =
+    w.slice(0,mid) + `<span class="hi">${w[mid]||''}</span>` + w.slice(mid+1);
+  document.getElementById('rsvp-bar').style.width = n ? (S.idx/n*100)+'%' : '0%';
+  document.getElementById('rsvp-pos').textContent = `${S.idx+1} / ${n}`;
+  const rem = Math.round((n-S.idx)/S.wpm*60);
+  document.getElementById('rsvp-eta').textContent = `~${Math.floor(rem/60)}dk ${rem%60}sn`;
+  S.nRead = S.idx;
+}
+
+function rsvpToggle() { S.playing ? rsvpStop() : rsvpPlay(); }
+
+function rsvpPlay() {
+  if(S.idx >= S.words.length-1) S.idx = 0;
+  S.playing = true; document.getElementById('btn-play').textContent = '⏸';
+  S.timer = setInterval(() => {
+    updateRSVP(); S.idx++;
+    if(S.idx >= S.words.length) {
+      rsvpStop();
+      document.getElementById('rsvp-word').innerHTML = '<span class="hi">✓</span>';
+      toast('🎉 Tamamlandı!'); autoStat(true);
+    }
+  }, 60000/S.wpm);
+}
+
+function rsvpStop() {
+  S.playing = false; clearInterval(S.timer);
+  document.getElementById('btn-play').textContent = '▶';
+}
+
+function rsvpRestart() { rsvpStop(); S.idx=0; updateRSVP(); }
+function rsvpBack()    { rsvpStop(); S.idx=Math.max(0,S.idx-10); updateRSVP(); }
+function rsvpFwd()     { rsvpStop(); S.idx=Math.min(S.words.length-1,S.idx+10); updateRSVP(); }
+
+/* ── SETTINGS ── */
+function setFont(v) {
+  document.getElementById('cv-font').textContent = v+'px';
+  document.getElementById('bionic-content').style.fontSize = v+'px';
+  document.getElementById('rsvp-word').style.fontSize = (v*1.9)+'px';
+}
+function setWPM(v) {
+  S.wpm = parseInt(v); document.getElementById('cv-wpm').textContent = v;
+  if(S.playing) { rsvpStop(); rsvpPlay(); }
+}
+
+/* ── SAVE ── */
+async function saveProgress() {
+  if(!S.sid) return;
+  const el = document.getElementById('bionic-content');
+  const sp = S.mode==='bionic' ? el.scrollTop/Math.max(1,el.scrollHeight-el.clientHeight) : 0;
+  await fetch(`${API}/api/progress/save`, { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({session_id:S.sid, mode:S.mode, word_position:S.idx, scroll_pct:sp, wpm:S.wpm}) });
+  toast('💾 Kaydedildi');
+}
+
+async function autoStat(done=false) {
+  if(!S.sid||!S.t0) return;
+  const dur = Math.round((Date.now()-S.t0)/1000);
+  await fetch(`${API}/api/stats/save`, { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({session_id:S.sid, mode:S.mode, words_read:S.nRead, duration_sec:dur, completed:done})
+  }).catch(()=>{});
+}
+
+/* ── RECENT ── */
+async function loadRecent() {
+  try {
+    const r = await fetch(`${API}/api/sessions?limit=5`);
+    const d = await r.json();
+    const g = document.getElementById('recent-grid');
+    const icons = {pdf:'📄',txt:'📝',epub:'📚',url:'🌐'};
+    if(!d.sessions?.length) { g.innerHTML='<div class="empty"><div class="empty-icon">📚</div><p>Henüz okuma geçmişi yok</p></div>'; return; }
+    g.innerHTML = d.sessions.map(s => {
+      const pct = s.word_position && s.total_words ? Math.round(s.word_position/s.total_words*100) : 0;
+      const R=11, C=2*Math.PI*R, dash=C*pct/100;
+      return `<div class="recent-item" onclick="">
+        <div class="recent-item-icon">${icons[s.source_type]||'📄'}</div>
+        <div class="recent-item-info">
+          <div class="recent-item-name">${s.source}</div>
+          <div class="recent-item-meta">${(s.total_words||0).toLocaleString()} kelime · ${s.source_type} · ${s.mode||'—'}</div>
+        </div>
+        <div class="recent-prog">
+          <svg width="28" height="28" viewBox="0 0 28 28">
+            <circle cx="14" cy="14" r="${R}" fill="none" stroke="var(--line)" stroke-width="2.5"/>
+            <circle cx="14" cy="14" r="${R}" fill="none" stroke="var(--gold)" stroke-width="2.5"
+              stroke-dasharray="${dash} ${C}" stroke-dashoffset="${C/4}" stroke-linecap="round"/>
+            <text x="14" y="18" text-anchor="middle" font-size="6.5" fill="var(--muted)" font-family="JetBrains Mono">${pct}%</text>
+          </svg>
+        </div>
+      </div>`;
+    }).join('');
+  } catch {}
+}
+
+/* ── DASHBOARD ── */
+async function loadDash() {
+  try {
+    const [dr, sr] = await Promise.all([fetch(`${API}/api/stats/dashboard`), fetch(`${API}/api/stats`)]);
+    const d = await dr.json(); const s = await sr.json();
+    const t = d.totals || {};
+    document.getElementById('k-ses').textContent = t.total_sessions||0;
+    const tw = t.total_words||0; document.getElementById('k-wrd').textContent = tw>=1000?(tw/1000).toFixed(1)+'K':tw;
+    const sec = t.total_seconds||0; document.getElementById('k-tim').textContent = sec>=3600?Math.floor(sec/3600)+'sa':Math.floor(sec/60)+'dk';
+    document.getElementById('k-wpm').textContent = Math.round(t.overall_avg_wpm||0)||'—';
+    drawDaily(d.daily||[]);
+    drawTrend(d.wpm_trend||[]);
+    drawHistory(s.stats||[]);
+  } catch(e) { console.error(e); }
+}
+
+function drawDaily(daily) {
+  const el = document.getElementById('chart-daily');
+  const days={};
+  for(let i=6;i>=0;i--) { const d=new Date(); d.setDate(d.getDate()-i); days[d.toISOString().slice(0,10)]=0; }
+  daily.forEach(d => { if(days[d.day]!==undefined) days[d.day]=d.words; });
+  const vals=Object.values(days), labs=Object.keys(days).map(k=>k.slice(5));
+  const mx=Math.max(...vals,1);
+  el.innerHTML = vals.map((v,i) => {
+    const h=Math.max(2,Math.round(v/mx*82));
+    return `<div class="bc">
+      <div class="bbar" style="height:${h}px;background:${v>0?'linear-gradient(180deg,var(--gold),rgba(201,168,76,0.3))':'var(--line)'}"></div>
+      <div class="blabel">${labs[i].replace('-','/')}</div>
+    </div>`;
+  }).join('');
+}
+
+function drawTrend(trend) {
+  const svg = document.getElementById('chart-wpm');
+  const vals = trend.map(t=>t.avg_wpm||0).filter(v=>v>0);
+  if(!vals.length) { svg.innerHTML=`<defs><linearGradient id="tg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#c9a84c" stop-opacity="0.3"/><stop offset="100%" stop-color="#c9a84c" stop-opacity="0"/></linearGradient></defs><text x="150" y="48" text-anchor="middle" fill="#4a4540" font-size="10" font-family="JetBrains Mono">Veri bekleniyor...</text>`; return; }
+  const mn=Math.min(...vals), mx=Math.max(...vals,mn+1);
+  const W=300,H=75,p=8;
+  const pts=vals.map((v,i)=>[p+(i/Math.max(vals.length-1,1))*(W-p*2), p+(1-(v-mn)/(mx-mn))*(H-p*2)]);
+  const path=pts.map((pt,i)=>`${i===0?'M':'L'}${pt[0]},${pt[1]}`).join(' ');
+  const area=path+` L${pts[pts.length-1][0]},${H} L${pts[0][0]},${H} Z`;
+  const dots=pts.map(pt=>`<circle cx="${pt[0]}" cy="${pt[1]}" r="2.5" fill="var(--gold)"/>`).join('');
+  const lbls=vals.map((v,i)=>{ const [x,y]=pts[i]; return (i===0||i===vals.length-1)?`<text x="${x}" y="${y-5}" text-anchor="middle" font-size="7.5" fill="#8a8178" font-family="JetBrains Mono">${Math.round(v)}</text>`:''; }).join('');
+  svg.innerHTML=`<defs><linearGradient id="tg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#c9a84c" stop-opacity="0.3"/><stop offset="100%" stop-color="#c9a84c" stop-opacity="0"/></linearGradient></defs><path d="${area}" fill="url(#tg)"/><path d="${path}" fill="none" stroke="var(--gold)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>${dots}${lbls}`;
+}
+
+function drawHistory(stats) {
+  const tb = document.getElementById('htbody');
+  if(!stats.length) { tb.innerHTML='<tr><td colspan="7"><div class="empty"><div class="empty-icon">📊</div><p>Henüz kayıt yok</p></div></td></tr>'; return; }
+  const fs = s => s>=3600?Math.floor(s/3600)+'sa':Math.floor(s/60)+'dk';
+  tb.innerHTML=stats.map(s=>`
+    <tr>
+      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.source}</td>
+      <td>${s.source_type}</td>
+      <td><span class="badge badge-${s.mode==='bionic'?'b':'r'}">${s.mode}</span></td>
+      <td>${(s.words_read||0).toLocaleString()}</td>
+      <td>${Math.round(s.avg_wpm||0)}</td>
+      <td>${fs(s.duration_sec||0)}</td>
+      <td>${s.completed?'<span class="badge badge-ok">✓ Bitti</span>':'<span style="color:var(--muted);font-size:0.7rem">devam</span>'}</td>
+    </tr>`).join('');
+}
+
+/* ── TOAST ── */
+let tt;
+function toast(m) {
+  const el=document.getElementById('toast');
+  el.textContent=m; el.classList.add('on');
+  clearTimeout(tt); tt=setTimeout(()=>el.classList.remove('on'),3200);
+}
+
+/* ── HELPERS ── */
+function setLoading(v) {
+  document.getElementById('loader').classList.toggle('on',v);
+  document.getElementById('btn-start').disabled = v||!S.text;
+}
+
+setInterval(()=>{ if(S.sid&&S.t0){ autoStat(false); saveProgress(); }},30000);
+loadRecent();
+</script>
+</body>
+</html>
