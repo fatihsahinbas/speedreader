@@ -1,10 +1,8 @@
-# Katkıda Bulunma Rehberi
+Katkıda Bulunma Rehberi
 
 SpeedReader'a katkıda bulunmak istediğin için teşekkürler! 🎉
 
----
-
-## 🚀 Nasıl Başlarım?
+Nasıl Başlarım?
 
 1. **Fork** — Repoyu fork'la
 2. **Clone** — Kendi fork'unu klonla
@@ -25,7 +23,7 @@ SpeedReader'a katkıda bulunmak istediğin için teşekkürler! 🎉
 
 ---
 
-## 📋 Commit Mesaj Formatı
+Commit Mesaj Formatı
 
 ```
 feat: yeni özellik
@@ -39,7 +37,7 @@ test: test ekleme
 
 ---
 
-## 🐛 Bug Bildirme
+Bug Bildirme
 
 GitHub Issues üzerinden bildir. Lütfen şunları ekle:
 - Hata mesajı (varsa)
@@ -48,7 +46,7 @@ GitHub Issues üzerinden bildir. Lütfen şunları ekle:
 
 ---
 
-## 💡 Özellik Önerisi
+Özellik Önerisi
 
 Issues açarken `[FEATURE]` etiketiyle başla ve şunları açıkla:
 - Ne yapmasını istiyorsun?
@@ -57,7 +55,7 @@ Issues açarken `[FEATURE]` etiketiyle başla ve şunları açıkla:
 
 ---
 
-## 🧪 Test
+Test
 
 ```bash
 cd backend
@@ -66,7 +64,7 @@ python -m pytest tests/  # (yakında)
 
 ---
 
-## 📐 Kod Stili
+Kod Stili
 
 - Python: PEP8, type hint'ler tercih edilir
 - Türkçe yorum satırları kabul edilir
