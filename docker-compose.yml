@@ -1,0 +1,25 @@
+version: "3.9"
+
+services:
+  speedreader:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: speedreader
+    ports:
+      - "8000:8000"
+    volumes:
+      # SQLite veritabanı kalıcı olsun
+      - speedreader_data:/app/data
+    environment:
+      - DB_PATH=/app/data/speedreader.db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  speedreader_data:

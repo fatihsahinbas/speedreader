@@ -1,0 +1,18 @@
+# Render.com deployment config
+# Repo'nun köküne koy: speedreader/render.yaml
+
+services:
+  - type: web
+    name: speedreader
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    envVars:
+      - key: DB_PATH
+        value: /app/data/speedreader.db
+    disk:
+      name: speedreader-data
+      mountPath: /app/data
+      sizeGB: 1
+    healthCheckPath: /api/health
